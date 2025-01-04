@@ -1,0 +1,73 @@
+services:
+  # Guacamole Backend Proxy
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: guacd
+    restart: always
+    ports:
+      - "4822:4822"
+
+  # Guacamole Web Application
+  guacamole:
+    image: guacamole/guacamole:latest
+    container_name: guacamole
+    restart: always
+    depends_on:
+      - guacd
+      - guacamole-db
+    environment:
+      GUACD_HOSTNAME: guacd
+      MYSQL_HOSTNAME: guacamole-db
+      MYSQL_DATABASE: guacamole_db
+      MYSQL_USER: guacamole_user
+      MYSQL_PASSWORD: guac_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "8080:8080"
+
+  # Guacamole Database (MariaDB)
+  guacamole-db:
+    image: mariadb:latest
+    container_name: guacamole-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "root_password"
+      MYSQL_DATABASE: "guacamole_db"
+      MYSQL_USER: "guacamole_user"
+      MYSQL_PASSWORD: "guac_password"
+    volumes:
+      - ./mysql-guacamole:/var/lib/mysql
+
+  # NGINX Proxy Manager (Application)
+  npm-app:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm-app
+    restart: always
+    depends_on:
+      - npm-db
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      DB_MYSQL_HOST: "npm-db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "npm"
+      DB_MYSQL_PASSWORD: "npm_password"
+      DB_MYSQL_NAME: "npm"
+    volumes:
+      - ./npm-data:/data
+      - ./npm-letsencrypt:/etc/letsencrypt
+
+  # NGINX Proxy Manager (Database)
+  npm-db:
+    image: mariadb:latest
+    container_name: npm-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "root_password"
+      MYSQL_DATABASE: "npm"
+      MYSQL_USER: "npm"
+      MYSQL_PASSWORD: "npm_password"
+    volumes:
+      - ./mysql-npm:/var/lib/mysql
